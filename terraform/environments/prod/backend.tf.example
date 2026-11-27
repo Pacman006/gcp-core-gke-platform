@@ -1,0 +1,8 @@
+# Copy to backend.tf only in an authorized, funded production project.
+# Never share state buckets between dev and prod.
+terraform {
+  backend "gcs" {
+    bucket = "plt-prod-core-tfstate"
+    prefix = "terraform/prod"
+  }
+}
