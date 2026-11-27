@@ -1,3 +1,5 @@
+[![CI Validate](https://github.com/Pacman006/gcp-core-gke-platform/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/Pacman006/gcp-core-gke-platform/actions/workflows/ci-validate.yml)
+
 # GCP Core Landing Zone & Multi-Environment GKE Platform
 
 **Platform Domain:** `plt-core` | **IaC:** Terraform (`~> 1.9`) | **Runtime:** Private GKE + ArgoCD | **Security:** Zero-Trust (Keyless OIDC, Private Nodes, Secret Manager CSI)
