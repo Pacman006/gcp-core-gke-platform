@@ -1,0 +1,93 @@
+name: CI Validate (App, IaC, K8s & Security)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  app-tests:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r app/requirements-test.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  terraform-validate:
+    name: Terraform Validate & TFLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9.0"
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive terraform
+
+      - name: Validate dev and prod environments
+        run: |
+          for env in dev prod; do
+            if [ -d "terraform/environments/$env" ]; then
+              echo "==> Validating terraform/environments/$env"
+              terraform -chdir="terraform/environments/$env" init -backend=false
+              terraform -chdir="terraform/environments/$env" validate
+              (cd "terraform/environments/$env" && tflint --init && tflint)
+            fi
+          done
+
+  kustomize-validate:
+    name: Kustomize Manifest Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build local and prod overlays
+        run: |
+          for overlay in local prod; do
+            if [ -d "k8s/overlays/$overlay" ]; then
+              echo "==> Rendering k8s/overlays/$overlay"
+              kubectl kustomize "k8s/overlays/$overlay" > /dev/null
+            fi
+          done
+
+  container-security:
+    name: Docker Build & Trivy Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build multi-stage Docker image
+        run: docker build -t platform-api:ci app
+
+      - name: Run Trivy vulnerability scan (CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "platform-api:ci"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: "CRITICAL"
